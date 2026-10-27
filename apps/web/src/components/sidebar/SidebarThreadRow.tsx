@@ -36,6 +36,7 @@ import {
   CircleCheckIcon,
   CircleDashedIcon,
   CircleDotDashedIcon,
+  CircleIcon,
   ClockIcon,
   GitBranchIcon,
   MessageCircleQuestionIcon,
@@ -512,7 +513,10 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
 
 type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
-  variant: "card" | "slim";
+  // Card and slim are the full style's inbox and shelf rows; compact and row are denser.
+  variant: "card" | "compact" | "slim" | "row";
+  // Off under a project header, which already names the project.
+  showProject?: boolean | undefined;
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
   snoozeSupported: boolean;
@@ -753,6 +757,29 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         }
                       : null;
   const isWokeStatus = topStatus?.icon === "woke";
+  const showProject = props.showProject ?? true;
+  // Compact and row step their icons down with the title.
+  const isDense = variant === "compact" || variant === "row";
+  const threadIconSize = isDense ? "size-3.5" : "size-4";
+  const statusIconClassName = cn(threadIconSize, "shrink-0");
+  const statusIcon =
+    topStatus === null ? null : topStatus.icon === "working" ? (
+      <CircleDashedIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "waiting" ? (
+      <CircleDotDashedIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "input" ? (
+      <MessageCircleQuestionIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "request" ? (
+      <UserRoundIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "approval" ? (
+      <ShieldQuestionIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "failed" ? (
+      <CircleAlertIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "done" ? (
+      <CircleCheckIcon aria-hidden className={statusIconClassName} />
+    ) : topStatus.icon === "woke" ? (
+      <AlarmClockIcon aria-hidden className={statusIconClassName} />
+    ) : null;
 
   const branchMismatch = resolveLocalCheckoutBranchMismatch({
     effectiveEnvMode: thread.worktreePath === null ? "local" : "worktree",
@@ -980,9 +1007,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     <span
       aria-hidden
       className={cn(
-        "min-w-0 flex-1 text-start text-sm transition-opacity motion-reduce:transition-none",
+        "min-w-0 flex-1 text-start transition-opacity motion-reduce:transition-none",
+        // The denser styles step the title down; the project header stays smaller still.
+        variant === "compact" || variant === "row" ? "text-xs-plus" : "text-sm",
         shouldRecede ? "font-normal" : "font-medium",
-        variant === "card"
+        variant !== "slim"
           ? cn(
               "truncate",
               shouldRecede
@@ -1089,14 +1118,39 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     )
   ) : null;
 
-  if (variant === "slim") {
+  const diff = latestRunDiff(thread);
+  const diffLabel = diff ? (
+    <span className="shrink-0 font-mono text-xs">
+      <span className="text-diff-addition-foreground">+{formatDiffCount(diff.insertions)}</span>{" "}
+      <span className="text-diff-deletion-foreground">−{formatDiffCount(diff.deletions)}</span>
+    </span>
+  ) : null;
+
+  if (variant === "slim" || variant === "row") {
+    const isRow = variant === "row";
+    // A row under a project header leads with what the thread is doing, or where it works.
+    const rowLeading =
+      statusIcon !== null && topStatus !== null ? (
+        <span className={cn("inline-flex", topStatus.className)}>{statusIcon}</span>
+      ) : thread.branch ? (
+        <GitBranchIcon
+          aria-hidden
+          className={cn(threadIconSize, "shrink-0 text-secondary-label")}
+        />
+      ) : (
+        <CircleIcon
+          aria-hidden
+          className={cn(threadIconSize, "shrink-0 text-secondary-label/60")}
+        />
+      );
     return (
       <li
         data-thread-item={threadKey}
         {...sortableRootProps}
         {...(fileDropHandlers ?? {})}
         className={cn(
-          "list-none [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
+          "list-none [content-visibility:auto]",
+          isRow ? "[contain-intrinsic-size:auto_32px]" : "[contain-intrinsic-size:auto_36px]",
           sortable?.isDragging && "relative z-20",
         )}
       >
@@ -1109,9 +1163,14 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 tabIndex={0}
                 aria-label={accessibility.label}
                 aria-current={accessibility.current}
-                data-testid="sidebar-row-slim"
+                data-testid={isRow ? "sidebar-row-row" : "sidebar-row-slim"}
                 aria-busy={isRegeneratingTitle || undefined}
-                className={cn(rowSurfaceClassName, "flex h-9 items-center gap-2.5 px-2.5")}
+                className={cn(
+                  rowSurfaceClassName,
+                  isRow
+                    ? "flex h-8 items-center gap-2 px-2"
+                    : "flex h-9 items-center gap-2.5 px-2.5",
+                )}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onKeyDown={handleKeyDown}
@@ -1127,12 +1186,17 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   "opacity-40 grayscale group-focus-within/sidebar-row:opacity-100 group-focus-within/sidebar-row:grayscale-0 group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
               )}
             >
-              {props.project ? <ProjectFavicon project={props.project} className="size-4" /> : null}
+              {isRow && !showProject ? (
+                rowLeading
+              ) : props.project ? (
+                <ProjectFavicon project={props.project} className={threadIconSize} />
+              ) : null}
             </span>
             {draftIndicator}
             {title}
             {pinIndicator}
             {terminalStatusIcon}
+            {isRow && !sortable?.isDragging ? diffLabel : null}
             {isRegeneratingTitle ? (
               <span role="status" className="sr-only">
                 Regenerating title
@@ -1248,7 +1312,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     );
   }
 
-  const diff = latestRunDiff(thread);
+  const isCompact = variant === "compact";
+  // Under a project header the project line would be empty, so the title takes its place.
+  const titleOnTop = isCompact || !showProject;
   // Only the provider icon would remain, so the row drops the line instead of leaving it blank.
   const metaLineEmpty =
     !thread.branch &&
@@ -1264,8 +1330,15 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       {...sortableRootProps}
       {...(fileDropHandlers ?? {})}
       className={cn(
-        "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_78px]",
-        metaLineEmpty && "[contain-intrinsic-size:auto_58px]",
+        "list-none [content-visibility:auto]",
+        isCompact
+          ? metaLineEmpty
+            ? "[contain-intrinsic-size:auto_32px]"
+            : "[contain-intrinsic-size:auto_52px]"
+          : cn(
+              "py-0.5 [contain-intrinsic-size:auto_78px]",
+              metaLineEmpty && "[contain-intrinsic-size:auto_58px]",
+            ),
         sortable?.isDragging && "relative z-20",
       )}
     >
@@ -1291,19 +1364,29 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           {accessibleTitle}
           <div
             className={cn(
-              "relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty && "h-auto",
+              "relative z-10",
+              isCompact
+                ? "px-2 py-1.5"
+                : cn(
+                    "px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
+                    titleOnTop || metaLineEmpty ? "h-auto" : "h-[4.875rem]",
+                  ),
             )}
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
-              {props.project ? (
-                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
+              {props.project && showProject ? (
+                <ProjectFavicon
+                  project={props.project}
+                  className={cn(threadIconSize, "shrink-0")}
+                />
               ) : null}
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
-              {props.projectDisplayName ? (
+              {titleOnTop ? (
+                title
+              ) : props.projectDisplayName ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}
                 >
@@ -1358,21 +1441,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             topStatus.className,
                           )}
                         >
-                          {topStatus.icon === "working" ? (
-                            <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "waiting" ? (
-                            <CircleDotDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "input" ? (
-                            <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "request" ? (
-                            <UserRoundIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "approval" ? (
-                            <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "failed" ? (
-                            <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "done" ? (
-                            <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
-                          ) : null}
+                          {statusIcon}
                           {/* Not a live region: a collapsed sidebar is inert, so
                             BackgroundThreadAnnouncer and the open thread's
                             timeline speak status changes instead. */}
@@ -1451,8 +1520,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               )}
               {props.sweepAction !== null ? dragDestination : null}
             </div>
-            <div className="mt-1 flex min-w-0 items-center gap-1.5">
-              {title}
+            <div className={cn("mt-1 flex min-w-0 items-center gap-1.5", titleOnTop && "hidden")}>
+              {!titleOnTop ? title : null}
               {isRegeneratingTitle ? (
                 <span role="status" className="sr-only">
                   Regenerating title
@@ -1490,16 +1559,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 )}
                 {terminalStatusIcon}
                 {prBadge}
-                {diff ? (
-                  <span className="shrink-0 font-mono">
-                    <span className="text-diff-addition-foreground">
-                      +{formatDiffCount(diff.insertions)}
-                    </span>{" "}
-                    <span className="text-diff-deletion-foreground">
-                      −{formatDiffCount(diff.deletions)}
-                    </span>
-                  </span>
-                ) : null}
+                {diffLabel}
                 <span
                   aria-hidden
                   className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1"

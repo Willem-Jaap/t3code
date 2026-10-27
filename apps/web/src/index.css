@@ -186,6 +186,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --text-4xs--line-height: 1;
   --text-5xs: 0.4375rem;
   --text-5xs--line-height: 1;
+  /* 13px, between text-xs and text-sm: the denser sidebar styles' thread
+     titles and project headers. */
+  --text-xs-plus: 0.8125rem;
+  --text-xs-plus--line-height: calc(1.125 / 0.8125);
   /* Motion. drawer is the decelerating curve for surfaces that slide or pop in
      (composer context, pills). */
   --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
