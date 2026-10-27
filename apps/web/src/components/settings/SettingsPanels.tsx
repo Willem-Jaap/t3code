@@ -19,6 +19,7 @@ import {
   type ResponseStreamingMode,
   type QuitConfirmationMode,
   SidebarProjectSortOrder,
+  SidebarThreadCardStyle,
 } from "@t3tools/contracts/settings";
 import { createModelSelection } from "@t3tools/shared/model";
 import * as Equal from "effect/Equal";
@@ -114,7 +115,14 @@ const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string>
   created_at: "Created at",
   manual: "Manual",
 };
+
+const SIDEBAR_THREAD_CARD_STYLE_LABELS: Record<SidebarThreadCardStyle, string> = {
+  full: "Full",
+  compact: "Compact",
+  row: "Row",
+};
 const isSidebarProjectSortOrder = Schema.is(SidebarProjectSortOrder);
+const isSidebarThreadCardStyle = Schema.is(SidebarThreadCardStyle);
 
 const TIMESTAMP_FORMAT_LABELS = {
   locale: "System default",
@@ -408,6 +416,13 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.mathRenderingEnabled !== DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled
       ? ["Render math"]
       : []),
+    ...(settings.sidebarGroupThreadsByProject !==
+    DEFAULT_UNIFIED_SETTINGS.sidebarGroupThreadsByProject
+      ? ["Group threads by project"]
+      : []),
+    ...(settings.sidebarThreadCardStyle !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadCardStyle
+      ? ["Thread card style"]
+      : []),
     ...(settings.panelAnimationDurationMs !== DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
       ? ["Panel animations"]
       : []),
@@ -581,6 +596,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme,
       chatWidth: DEFAULT_UNIFIED_SETTINGS.chatWidth,
       mathRenderingEnabled: DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled,
+      sidebarGroupThreadsByProject: DEFAULT_UNIFIED_SETTINGS.sidebarGroupThreadsByProject,
+      sidebarThreadCardStyle: DEFAULT_UNIFIED_SETTINGS.sidebarThreadCardStyle,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
@@ -838,6 +855,72 @@ export function GeneralSettingsPanel() {
                 {SidebarProjectSortOrder.literals.map((sortOrder) => (
                   <SelectItem hideIndicator key={sortOrder} value={sortOrder}>
                     {SIDEBAR_PROJECT_SORT_ORDER_LABELS[sortOrder]}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("sidebar-group-by-project")}
+          description="List active threads under collapsible project headers."
+          resetAction={
+            settings.sidebarGroupThreadsByProject !==
+            DEFAULT_UNIFIED_SETTINGS.sidebarGroupThreadsByProject ? (
+              <SettingResetButton
+                label="group threads by project"
+                onClick={() =>
+                  updateSettings({
+                    sidebarGroupThreadsByProject:
+                      DEFAULT_UNIFIED_SETTINGS.sidebarGroupThreadsByProject,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.sidebarGroupThreadsByProject}
+              onCheckedChange={(checked) =>
+                updateSettings({ sidebarGroupThreadsByProject: Boolean(checked) })
+              }
+              aria-label="Group threads by project"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("sidebar-thread-card-style")}
+          description="Full shows project, title and branch. Compact drops to two lines. Row fits each thread on one line."
+          resetAction={
+            settings.sidebarThreadCardStyle !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadCardStyle ? (
+              <SettingResetButton
+                label="thread card style"
+                onClick={() =>
+                  updateSettings({
+                    sidebarThreadCardStyle: DEFAULT_UNIFIED_SETTINGS.sidebarThreadCardStyle,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.sidebarThreadCardStyle}
+              onValueChange={(value) => {
+                if (isSidebarThreadCardStyle(value)) {
+                  updateSettings({ sidebarThreadCardStyle: value });
+                }
+              }}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Thread card style">
+                <SelectValue>
+                  {SIDEBAR_THREAD_CARD_STYLE_LABELS[settings.sidebarThreadCardStyle]}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                {SidebarThreadCardStyle.literals.map((style) => (
+                  <SelectItem hideIndicator key={style} value={style}>
+                    {SIDEBAR_THREAD_CARD_STYLE_LABELS[style]}
                   </SelectItem>
                 ))}
               </SelectPopup>

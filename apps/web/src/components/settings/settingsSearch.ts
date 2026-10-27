@@ -392,6 +392,18 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["sort projects sidebar manual created recent"],
   },
   {
+    id: "sidebar-group-by-project",
+    title: "Group threads by project",
+    to: "/settings/general",
+    searchTerms: ["sidebar projects tree folders nested collapse"],
+  },
+  {
+    id: "sidebar-thread-card-style",
+    title: "Thread card style",
+    to: "/settings/general",
+    searchTerms: ["sidebar compact dense row density list full"],
+  },
+  {
     id: "snooze-limited-threads",
     title: "Snooze until limits reset",
     to: "/settings/threads",
