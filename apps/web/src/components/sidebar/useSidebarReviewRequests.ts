@@ -3,7 +3,8 @@ import { useEffect, useEffectEvent } from "react";
 
 import { useEnvironments, usePullRequestsSupported } from "~/state/environments";
 import { usePullRequestList } from "~/state/pullRequests";
-import { sidebarReviewRequests } from "./sidebarReviewRequests.logic";
+import { partitionReviewRequests, sidebarReviewRequests } from "./sidebarReviewRequests.logic";
+import { useSidebarReviewStore } from "./sidebarReviewStore";
 
 // Review requests arrive from teammates, not from this app, so no server signal refreshes them.
 const REFRESH_INTERVAL_MS = 3 * 60_000;
@@ -15,7 +16,10 @@ const LIST_INPUT = {
   limit: 50,
 } as const satisfies PullRequestListInput;
 
-/** Open pull requests waiting on your review, across every connected environment. */
+/**
+ * Open pull requests waiting on your review across every connected environment, plus those you
+ * reviewed here (Done) and those you hid.
+ */
 export function useSidebarReviewRequests() {
   const supported = usePullRequestsSupported();
   const { environments } = useEnvironments();
@@ -48,9 +52,23 @@ export function useSidebarReviewRequests() {
     };
   }, [active]);
 
+  const reviewed = useSidebarReviewStore((store) => store.reviewed);
+  const hidden = useSidebarReviewStore((store) => store.hidden);
+  const answeredAt = new Map(
+    list.observations.map(([environmentId, , observedAt]) => [environmentId, observedAt] as const),
+  );
+  const partition = partitionReviewRequests({
+    requests: list.data === null ? [] : sidebarReviewRequests(list.data.entries),
+    reviewed,
+    hidden,
+    answeredAt,
+    // Measured from the latest answer rather than the clock, which render must not read.
+    now: Math.max(0, ...answeredAt.values()),
+  });
+
   return {
     supported: active,
-    requests: list.data === null ? [] : sidebarReviewRequests(list.data.entries),
+    ...partition,
     isPending: list.isPending && list.data === null,
     error: list.data === null ? list.error : null,
   };

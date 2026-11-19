@@ -53,6 +53,8 @@ export interface PullRequestsSearch extends PullRequestListPreferences {
   readonly selectedProjectId?: ProjectId | undefined;
   readonly selectedHost?: string | undefined;
   readonly selectedEnvironmentId?: EnvironmentId | undefined;
+  /** Opens the selected pull request filling the page, as the sidebar's review rows do. */
+  readonly maximized?: boolean | undefined;
 }
 
 const SEARCH_DEBOUNCE_MS = 250;

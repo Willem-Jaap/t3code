@@ -1116,6 +1116,20 @@ export function PullRequestsPage() {
   const rightPanelAvailable = selectedPullRequestSurface !== null;
   const mobileSidebarSheetMounted = useMobileSidebarSheetMounted();
   const [maximized, setMaximized] = useState(false);
+  // Applied once the panel opens: the page closes maximize while no pull request is open.
+  const maximizeRequest =
+    search.maximized === true && search.repository !== undefined && search.number !== undefined
+      ? `${search.repository}#${search.number}`
+      : null;
+  const [appliedMaximizeRequest, setAppliedMaximizeRequest] = useState<string | null>(null);
+  if (
+    maximizeRequest !== null &&
+    maximizeRequest !== appliedMaximizeRequest &&
+    rightPanelState.isOpen
+  ) {
+    setAppliedMaximizeRequest(maximizeRequest);
+    setMaximized(true);
+  }
   const rightPanelMaximized = rightPanelState.isOpen && maximized;
   if (!rightPanelState.isOpen && maximized) setMaximized(false);
   const toggleRightPanelMaximized = () => {

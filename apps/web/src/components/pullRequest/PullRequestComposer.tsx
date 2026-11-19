@@ -22,6 +22,7 @@ import {
 import { pullRequestCompletionScope } from "./PullRequestMarkdownTextarea";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
+import { reviewSnapshotFromDetail } from "../sidebar/sidebarReviewRequests.logic";
 
 export function PullRequestComposer({
   environmentId,
@@ -205,6 +206,7 @@ export function PullRequestComposer({
               pending={reviewPending}
               onPendingChange={setReviewPending}
               verdictRequest={reviewVerdictRequest}
+              snapshot={reviewSnapshotFromDetail(environmentId, reference, detail)}
               onSubmitted={() => {
                 setOpen(false);
                 onReviewSubmitted();

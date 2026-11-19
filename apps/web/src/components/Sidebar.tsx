@@ -2020,7 +2020,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             key: scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
             activityAt: thread.updatedAt,
           })),
-          reviewRequests.requests,
+          reviewRequests.waiting,
         )
       : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- cancels the dnd-kit drag sensor when the dragged row leaves the list
@@ -3246,7 +3246,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 <SidebarKindTags
                   value={kindFilter}
                   onChange={setSidebarKindFilter}
-                  reviewCount={reviewRequests.requests.length}
+                  reviewCount={reviewRequests.waiting.length}
                 />
               </div>
             ) : null}
@@ -3338,7 +3338,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ) : null}
           {!isSearchingThreads && kindFilter !== "threads" && mixedReviews === null ? (
             <SidebarReviewRequestSection
-              requests={reviewRequests.requests}
+              waiting={reviewRequests.waiting}
+              done={reviewRequests.done}
+              hidden={reviewRequests.hidden}
               isPending={reviewRequests.isPending}
               error={reviewRequests.error}
               standalone={kindFilter === "reviews"}

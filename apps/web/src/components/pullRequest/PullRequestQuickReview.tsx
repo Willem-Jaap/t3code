@@ -21,6 +21,7 @@ import {
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
 import { usePullRequestReviewSubmit } from "./PullRequestReviewForm";
+import { reviewSnapshotFromDetail } from "../sidebar/sidebarReviewRequests.logic";
 
 /**
  * Approve or request changes from the header. Both send the drafted summary and line comments;
@@ -53,6 +54,7 @@ export function PullRequestQuickReview({
     environmentId,
     reference,
     term,
+    snapshot: reviewSnapshotFromDetail(environmentId, reference, detail),
     onPendingChange: () => {},
     onSubmitted,
   });

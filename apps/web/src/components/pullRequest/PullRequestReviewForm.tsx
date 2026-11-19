@@ -26,6 +26,8 @@ import {
 } from "./PullRequestMarkdownTextarea";
 
 import type { ChangeRequestTermKind } from "./changeRequestTerm";
+import type { SidebarPullRequestSnapshot } from "../sidebar/sidebarReviewRequests.logic";
+import { useSidebarReviewStore } from "../sidebar/sidebarReviewStore";
 
 type ReviewVerdictOption = {
   readonly value: PullRequestReviewVerdict;
@@ -69,12 +71,15 @@ export function usePullRequestReviewSubmit({
   environmentId,
   reference,
   term,
+  snapshot,
   onPendingChange,
   onSubmitted,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
   term: ChangeRequestTermKind;
+  /** Lets the sidebar move the pull request to Done once the review lands. */
+  snapshot: SidebarPullRequestSnapshot | null;
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
 }) {
@@ -111,6 +116,7 @@ export function usePullRequestReviewSubmit({
       submittedComments.map((comment) => comment.id),
     );
     clearSummary(reviewKey, text);
+    if (snapshot !== null) useSidebarReviewStore.getState().markReviewed(snapshot, verdict.value);
     toastManager.add({ type: "success", title: verdict.sent(term) });
     onSubmitted();
   };
@@ -129,6 +135,7 @@ export function PullRequestReviewForm({
   onPendingChange,
   onSubmitted,
   verdictRequest,
+  snapshot,
 }: {
   environmentId: EnvironmentId;
   /** False while the form stays mounted but hidden; dictation is cancelled then. */
@@ -146,6 +153,7 @@ export function PullRequestReviewForm({
   verdictRequest?:
     | { readonly token: number; readonly verdict: PullRequestReviewVerdict }
     | undefined;
+  snapshot: SidebarPullRequestSnapshot | null;
 }) {
   const gt = useGT();
   const resolve = useMessages();
@@ -179,6 +187,7 @@ export function PullRequestReviewForm({
     environmentId,
     reference,
     term,
+    snapshot,
     onPendingChange,
     onSubmitted,
   });
