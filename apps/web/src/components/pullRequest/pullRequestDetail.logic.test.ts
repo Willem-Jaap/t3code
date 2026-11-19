@@ -44,6 +44,7 @@ import {
   pullRequestPanelContext,
   threadPullRequestPanelTarget,
   latestPullRequestReviewOutcomes,
+  viewerPullRequestReviewOutcome,
   newestPullRequestCommitAt,
   mergePullRequestThreadComments,
   orderPullRequestComments,
@@ -278,6 +279,17 @@ describe("review verdicts", () => {
     expect(
       latestPullRequestReviewOutcomes([review("2026-07-06T00:00:00Z")], commits)[0]?.stale,
     ).toBe(false);
+    // The viewer's own approval reads as approved only while it covers the newest commit.
+    const viewer = TIMELINE_SOURCE.comments[0]!.author!.login.toUpperCase();
+    expect(viewerPullRequestReviewOutcome([review("2026-07-06T00:00:00Z")], commits, viewer)).toBe(
+      "approved",
+    );
+    expect(
+      viewerPullRequestReviewOutcome([review("2026-07-01T00:00:00Z")], commits, viewer),
+    ).toBeNull();
+    expect(
+      viewerPullRequestReviewOutcome([review("2026-07-06T00:00:00Z")], commits, "someone-else"),
+    ).toBeNull();
     expect(latestPullRequestReviewOutcomes([review("2026-07-01T00:00:00Z")], [])[0]?.stale).toBe(
       false,
     );

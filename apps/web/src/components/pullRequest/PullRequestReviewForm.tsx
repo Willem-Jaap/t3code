@@ -27,12 +27,14 @@ import {
 
 import type { ChangeRequestTermKind } from "./changeRequestTerm";
 
-const VERDICTS: ReadonlyArray<{
+type ReviewVerdictOption = {
   readonly value: PullRequestReviewVerdict;
   readonly label: string;
   readonly sent: (term: ChangeRequestTermKind) => string;
   readonly icon: ReactNode;
-}> = [
+};
+
+const VERDICTS: ReadonlyArray<ReviewVerdictOption> = [
   {
     value: "comment",
     label: msg("Comment", { $context: "review verdict" }),
@@ -59,76 +61,37 @@ const VERDICTS: ReadonlyArray<{
   },
 ];
 
-export function PullRequestReviewForm({
+/**
+ * Sends a review with the draft line comments, then clears what was sent. Comments and summary
+ * edits made while it is in flight are kept.
+ */
+export function usePullRequestReviewSubmit({
   environmentId,
-  active,
   reference,
-  completionScope,
   term,
-  verdicts,
-  requestChangesSummaryRequired,
-  textareaRef,
-  pending,
   onPendingChange,
   onSubmitted,
 }: {
   environmentId: EnvironmentId;
-  /** False while the form stays mounted but hidden; dictation is cancelled then. */
-  active: boolean;
   reference: PullRequestRef;
-  completionScope: PullRequestCompletionScope | null;
   term: ChangeRequestTermKind;
-  verdicts: ReadonlyArray<PullRequestReviewVerdict>;
-  requestChangesSummaryRequired: boolean;
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
-  pending: boolean;
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
 }) {
-  const gt = useGT();
-  const resolve = useMessages();
-  const [requestedVerdict, setRequestedVerdict] = useState<PullRequestReviewVerdict>("comment");
-  const comments = usePendingReviewComments(reference);
   const reviewKey = pullRequestReviewKey(reference);
-  const body = usePullRequestReviewStore((store) => store.summaries[reviewKey] ?? "");
   const removeComments = usePullRequestReviewStore((store) => store.removeComments);
-  const setSummary = usePullRequestReviewStore((store) => store.setSummary);
-  const speech = useTextFieldSpeech({
-    environmentId,
-    projectId: reference.projectId,
-    ownerKey: JSON.stringify(["pr-review", environmentId, reviewKey]),
-    text: body,
-    textareaRef,
-    onTextChange: (text) => setSummary(reviewKey, text),
-    disabled: !active || pending,
-  });
-  const { cancel } = speech;
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- discards a recording when the hidden form can no longer be submitted
-  useEffect(() => {
-    if (!active) cancel();
-  }, [active, cancel]);
   const clearSummary = usePullRequestReviewStore((store) => store.clearSummary);
   const submitReview = useAtomCommand(pullRequestEnvironment.submitReview, {
     reportFailure: false,
   });
-
-  const offered = VERDICTS.filter((verdict) => verdicts.includes(verdict.value));
-  const selectedVerdict =
-    offered.find((verdict) => verdict.value === requestedVerdict) ?? offered[0];
-
-  const submit = async (verdict: (typeof VERDICTS)[number], text: string) => {
+  return async (verdictValue: PullRequestReviewVerdict, text: string) => {
+    const verdict = VERDICTS.find((option) => option.value === verdictValue);
+    if (verdict === undefined) return;
     const submittedComments = usePullRequestReviewStore.getState().drafts[reviewKey] ?? [];
-    if (pending || !canSubmit(verdict.value, text, submittedComments.length)) return;
-    const submittedBody = text;
     onPendingChange(true);
     const result = await submitReview({
       environmentId,
-      input: {
-        ...reference,
-        verdict: verdict.value,
-        body: submittedBody,
-        comments: submittedComments,
-      },
+      input: { ...reference, verdict: verdict.value, body: text, comments: submittedComments },
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
@@ -147,9 +110,87 @@ export function PullRequestReviewForm({
       reviewKey,
       submittedComments.map((comment) => comment.id),
     );
-    clearSummary(reviewKey, submittedBody);
+    clearSummary(reviewKey, text);
     toastManager.add({ type: "success", title: verdict.sent(term) });
     onSubmitted();
+  };
+}
+
+export function PullRequestReviewForm({
+  environmentId,
+  active,
+  reference,
+  completionScope,
+  term,
+  verdicts,
+  requestChangesSummaryRequired,
+  textareaRef,
+  pending,
+  onPendingChange,
+  onSubmitted,
+  verdictRequest,
+}: {
+  environmentId: EnvironmentId;
+  /** False while the form stays mounted but hidden; dictation is cancelled then. */
+  active: boolean;
+  reference: PullRequestRef;
+  completionScope: PullRequestCompletionScope | null;
+  term: ChangeRequestTermKind;
+  verdicts: ReadonlyArray<PullRequestReviewVerdict>;
+  requestChangesSummaryRequired: boolean;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  pending: boolean;
+  onPendingChange: (pending: boolean) => void;
+  onSubmitted: () => void;
+  /** Selects a verdict each time `token` changes, such as from a header button. */
+  verdictRequest?:
+    | { readonly token: number; readonly verdict: PullRequestReviewVerdict }
+    | undefined;
+}) {
+  const gt = useGT();
+  const resolve = useMessages();
+  const [requestedVerdict, setRequestedVerdict] = useState<PullRequestReviewVerdict>(
+    verdictRequest?.verdict ?? "comment",
+  );
+  const [answeredVerdictToken, setAnsweredVerdictToken] = useState(verdictRequest?.token);
+  if (verdictRequest !== undefined && verdictRequest.token !== answeredVerdictToken) {
+    setAnsweredVerdictToken(verdictRequest.token);
+    setRequestedVerdict(verdictRequest.verdict);
+  }
+  const comments = usePendingReviewComments(reference);
+  const reviewKey = pullRequestReviewKey(reference);
+  const body = usePullRequestReviewStore((store) => store.summaries[reviewKey] ?? "");
+  const setSummary = usePullRequestReviewStore((store) => store.setSummary);
+  const speech = useTextFieldSpeech({
+    environmentId,
+    projectId: reference.projectId,
+    ownerKey: JSON.stringify(["pr-review", environmentId, reviewKey]),
+    text: body,
+    textareaRef,
+    onTextChange: (text) => setSummary(reviewKey, text),
+    disabled: !active || pending,
+  });
+  const { cancel } = speech;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- discards a recording when the hidden form can no longer be submitted
+  useEffect(() => {
+    if (!active) cancel();
+  }, [active, cancel]);
+  const sendReview = usePullRequestReviewSubmit({
+    environmentId,
+    reference,
+    term,
+    onPendingChange,
+    onSubmitted,
+  });
+
+  const offered = VERDICTS.filter((verdict) => verdicts.includes(verdict.value));
+  const selectedVerdict =
+    offered.find((verdict) => verdict.value === requestedVerdict) ?? offered[0];
+
+  const submit = async (verdict: ReviewVerdictOption, text: string) => {
+    const commentCount = usePullRequestReviewStore.getState().drafts[reviewKey]?.length ?? 0;
+    if (pending || !canSubmit(verdict.value, text, commentCount)) return;
+    await sendReview(verdict.value, text);
   };
 
   // Forgejo requires a summary when requesting changes, even with inline comments.

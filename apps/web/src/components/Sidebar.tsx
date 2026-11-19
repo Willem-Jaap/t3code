@@ -257,6 +257,14 @@ import {
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
+import {
+  SidebarKindTags,
+  SidebarReviewRequestRow,
+  SidebarReviewRequestSection,
+} from "./sidebar/SidebarReviewRequests";
+import { interleaveReviewRequests } from "./sidebar/sidebarReviewRequests.logic";
+import type { EnvironmentPullRequestEntry } from "./pullRequest/pullRequestList.logic";
+import { useSidebarReviewRequests } from "./sidebar/useSidebarReviewRequests";
 import { TooltipProvider } from "./ui/tooltip";
 import {
   composerDraftHasUserContent,
@@ -1123,6 +1131,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       ? null
       : scopedThreadKey(resolveListedAncestorThreadRef(routeThreadRef, threads));
   const isSearchingThreads = threadSearchQuery.trim().length > 0;
+  const reviewRequests = useSidebarReviewRequests();
+  const persistedKindFilter = useUiStateStore((store) => store.sidebarKindFilter);
+  const setSidebarKindFilter = useUiStateStore((store) => store.setSidebarKindFilter);
+  const kindFilter = reviewRequests.supported ? persistedKindFilter : "threads";
   // The open draft's first send names its thread in place; a finalized draft reached by
   // navigation resolves through its redirect instead, and still reveals.
   const routeKeyInPlace = routeDraftThread?.promotedTo != null;
@@ -2000,6 +2012,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     // Update the local list too; threadByKey already omits rows moved into collapsed shelves.
     sidebarListItems = sidebarListItemsFresh;
   }
+  // Folders group by project, where a cross-project pull request has no place; it keeps its section.
+  const mixedReviews =
+    kindFilter === "all" && projectFolders === null && sidebarListItems.length > 0
+      ? interleaveReviewRequests(
+          activeThreads.map((thread) => ({
+            key: scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+            activityAt: thread.updatedAt,
+          })),
+          reviewRequests.requests,
+        )
+      : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- cancels the dnd-kit drag sensor when the dragged row leaves the list
   useEffect(() => {
     if (
@@ -3218,6 +3241,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               activeSearchResultIndex={activeSearchResultIndex}
               onClearSearch={clearThreadSearch}
             />
+            {reviewRequests.supported ? (
+              <div className="pt-1">
+                <SidebarKindTags
+                  value={kindFilter}
+                  onChange={setSidebarKindFilter}
+                  reviewCount={reviewRequests.requests.length}
+                />
+              </div>
+            ) : null}
           </SidebarGroup>
         }
       >
@@ -3304,8 +3336,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               </p>
             )
           ) : null}
+          {!isSearchingThreads && kindFilter !== "threads" && mixedReviews === null ? (
+            <SidebarReviewRequestSection
+              requests={reviewRequests.requests}
+              isPending={reviewRequests.isPending}
+              error={reviewRequests.error}
+              standalone={kindFilter === "reviews"}
+            />
+          ) : null}
           {/* A scope can hide every active thread; say so even when its project still has settled ones. */}
           {!isSearchingThreads &&
+          kindFilter !== "reviews" &&
           !hasProjectFolders &&
           visibleDraftSessionCount === 0 &&
           pinnedThreads.length +
@@ -3357,7 +3398,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               )}
             </div>
           ) : null}
-          {!isSearchingThreads ? (
+          {!isSearchingThreads && kindFilter !== "reviews" ? (
             <TooltipProvider
               key="sidebar-thread-tooltips-150"
               delay={150}
@@ -3523,12 +3564,36 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           onDraftContextMenu={handleDraftContextMenu}
                         />,
                       ];
+                      const pushReviewRows = (entries: readonly EnvironmentPullRequestEntry[]) => {
+                        for (const entry of entries) {
+                          items.push(
+                            <SidebarReviewRequestRow
+                              key={`review:${entry.environmentId}:${entry.host}:${entry.repository}#${entry.number}`}
+                              entry={entry}
+                              variant="card"
+                            />,
+                          );
+                        }
+                      };
+                      let trailingReviewsPlaced = mixedReviews === null;
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
                           if (projectFolders !== null && item.section === "active") continue;
+                          if (mixedReviews !== null && item.section === "active") {
+                            pushReviewRows(mixedReviews.before.get(item.key) ?? []);
+                          }
                           items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
                           continue;
+                        }
+                        if (
+                          !trailingReviewsPlaced &&
+                          (item.marker === "working-header" ||
+                            item.marker === "snoozed-header" ||
+                            item.marker === "settled-header")
+                        ) {
+                          trailingReviewsPlaced = true;
+                          pushReviewRows(mixedReviews?.trailing ?? []);
                         }
                         if (projectFolders !== null && item.marker === "active-placeholder") {
                           for (const folder of projectFolders) {

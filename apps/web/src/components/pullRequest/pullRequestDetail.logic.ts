@@ -481,6 +481,23 @@ export function latestPullRequestReviewOutcomes(
   return [...latest.values()].filter((entry) => entry.outcome !== "dismissed");
 }
 
+/** The viewer's own verdict while it still covers the newest commit; commits after it reopen review. */
+export function viewerPullRequestReviewOutcome(
+  comments: ReadonlyArray<PullRequestComment>,
+  commits: ReadonlyArray<PullRequestCommit>,
+  viewer: string | undefined,
+): "approved" | "changes-requested" | null {
+  if (viewer === undefined) return null;
+  const login = viewer.toLowerCase();
+  const entry = latestPullRequestReviewOutcomes(comments, commits).find(
+    (candidate) => candidate.actor?.login.toLowerCase() === login,
+  );
+  if (entry === undefined || entry.stale) return null;
+  return entry.outcome === "approved" || entry.outcome === "changes-requested"
+    ? entry.outcome
+    : null;
+}
+
 export interface PullRequestTimelineEvent {
   readonly id: string;
   readonly at: string;

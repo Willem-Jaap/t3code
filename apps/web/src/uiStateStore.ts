@@ -32,6 +32,7 @@ export interface PersistedUiState {
   threadChangedFilesExpansionVersion?: number;
   threadChangedFilesExpandedById?: Record<string, Record<string, boolean>>;
   pullRequestMergeMethod?: string;
+  sidebarKindFilter?: string;
 }
 
 export interface UiProjectState {
@@ -53,8 +54,15 @@ export interface UiPullRequestState {
   pullRequestMergeMethod: PullRequestMergeMethod;
 }
 
+const SIDEBAR_KIND_FILTERS = ["all", "threads", "reviews"] as const;
+export type SidebarKindFilter = (typeof SIDEBAR_KIND_FILTERS)[number];
+
+export interface UiSidebarState {
+  sidebarKindFilter: SidebarKindFilter;
+}
+
 export interface UiState
-  extends UiProjectState, UiThreadState, UiEndpointState, UiPullRequestState {}
+  extends UiProjectState, UiThreadState, UiEndpointState, UiPullRequestState, UiSidebarState {}
 
 const initialState: UiState = {
   projectExpandedById: {},
@@ -64,6 +72,7 @@ const initialState: UiState = {
   threadChangedFilesExpandedById: {},
   defaultAdvertisedEndpointKey: null,
   pullRequestMergeMethod: "merge",
+  sidebarKindFilter: "all",
 };
 
 const LEGACY_PROJECT_CWD_PREFERENCE_PREFIX = "legacy-project-cwd:";
@@ -156,7 +165,14 @@ export function parsePersistedState(parsed: PersistedUiState): UiState {
     pullRequestMergeMethod: isPullRequestMergeMethod(parsed.pullRequestMergeMethod)
       ? parsed.pullRequestMergeMethod
       : initialState.pullRequestMergeMethod,
+    sidebarKindFilter: isSidebarKindFilter(parsed.sidebarKindFilter)
+      ? parsed.sidebarKindFilter
+      : initialState.sidebarKindFilter,
   };
+}
+
+function isSidebarKindFilter(value: unknown): value is SidebarKindFilter {
+  return SIDEBAR_KIND_FILTERS.some((filter) => filter === value);
 }
 
 function readPersistedState(): UiState {
@@ -230,6 +246,7 @@ export function persistState(state: UiState): void {
         threadChangedFilesExpansionVersion: THREAD_CHANGED_FILES_EXPANSION_VERSION,
         threadChangedFilesExpandedById: state.threadChangedFilesExpandedById,
         pullRequestMergeMethod: state.pullRequestMergeMethod,
+        sidebarKindFilter: state.sidebarKindFilter,
       } satisfies PersistedUiState),
     );
     if (!legacyKeysCleanedUp) {
@@ -429,6 +446,7 @@ interface UiStateStore extends UiState {
   setDefaultAdvertisedEndpointKey: (key: string | null) => void;
   setSidebarProjectScopeKeys: (projectKeys: readonly string[]) => void;
   setPullRequestMergeMethod: (method: PullRequestMergeMethod) => void;
+  setSidebarKindFilter: (filter: SidebarKindFilter) => void;
   setProjectExpanded: (projectIds: string | readonly string[], expanded: boolean) => void;
   reorderProjects: (
     currentProjectOrder: readonly string[],
@@ -450,6 +468,10 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
   setSidebarProjectScopeKeys: (projectKeys) =>
     set((state) => setSidebarProjectScopeKeys(state, projectKeys)),
   setPullRequestMergeMethod: (method) => set((state) => setPullRequestMergeMethod(state, method)),
+  setSidebarKindFilter: (filter) =>
+    set((state) =>
+      state.sidebarKindFilter === filter ? state : { ...state, sidebarKindFilter: filter },
+    ),
   setProjectExpanded: (projectIds, expanded) =>
     set((state) => setProjectExpanded(state, projectIds, expanded)),
   reorderProjects: (currentProjectOrder, draggedProjectIds, targetProjectIds) =>

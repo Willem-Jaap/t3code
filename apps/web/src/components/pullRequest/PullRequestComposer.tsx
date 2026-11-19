@@ -1,5 +1,10 @@
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-import type { EnvironmentId, PullRequestDetailView, PullRequestRef } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  PullRequestDetailView,
+  PullRequestRef,
+  PullRequestReviewVerdict,
+} from "@t3tools/contracts";
 import { MessageSquareIcon, Trash2Icon, XIcon } from "lucide-react";
 import { T, useGT } from "gt-react";
 import { useRef, useState } from "react";
@@ -27,6 +32,7 @@ export function PullRequestComposer({
   onCommented,
   onReviewSubmitted,
   openReviewRequest,
+  reviewVerdictRequest,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
@@ -39,6 +45,10 @@ export function PullRequestComposer({
   onCommented: () => void;
   onReviewSubmitted: () => void;
   openReviewRequest?: number | undefined;
+  /** Opens the review with this verdict selected each time `token` changes. */
+  reviewVerdictRequest?:
+    | { readonly token: number; readonly verdict: PullRequestReviewVerdict }
+    | undefined;
 }) {
   const gt = useGT();
   const term = changeRequestTermKind(sourceControlClients.get(detail.provider).changeRequest);
@@ -56,8 +66,13 @@ export function PullRequestComposer({
   );
   const reviewStarted = pendingComments.length > 0 || summaryStarted;
   const [answeredOpenRequest, setAnsweredOpenRequest] = useState(openReviewRequest);
-  if (openReviewRequest !== answeredOpenRequest) {
+  const [answeredVerdictToken, setAnsweredVerdictToken] = useState(reviewVerdictRequest?.token);
+  if (
+    openReviewRequest !== answeredOpenRequest ||
+    reviewVerdictRequest?.token !== answeredVerdictToken
+  ) {
     setAnsweredOpenRequest(openReviewRequest);
+    setAnsweredVerdictToken(reviewVerdictRequest?.token);
     setRequestedMode("review");
     setOpen(true);
   }
@@ -189,6 +204,7 @@ export function PullRequestComposer({
               textareaRef={reviewRef}
               pending={reviewPending}
               onPendingChange={setReviewPending}
+              verdictRequest={reviewVerdictRequest}
               onSubmitted={() => {
                 setOpen(false);
                 onReviewSubmitted();
