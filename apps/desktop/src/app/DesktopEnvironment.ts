@@ -103,6 +103,8 @@ export function resolveDesktopAppBranding(input: {
   readonly appVersion: string;
 }): DesktopAppBranding {
   const stageLabel = resolveDesktopAppStageLabel(input);
+  // This fork ships its own packaged builds as T3 Pixel; dev and nightly keep upstream's names.
+  if (stageLabel === "Beta") return { baseName: "T3 Pixel", stageLabel, displayName: "T3 Pixel" };
   return {
     baseName: APP_BASE_NAME,
     stageLabel,

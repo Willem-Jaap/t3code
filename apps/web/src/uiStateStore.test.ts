@@ -24,6 +24,7 @@ function makeUiState(overrides: Partial<UiState> = {}): UiState {
     threadChangedFilesExpandedById: {},
     defaultAdvertisedEndpointKey: null,
     pullRequestMergeMethod: "merge",
+    sidebarKindFilter: "all",
     ...overrides,
   };
 }
@@ -127,6 +128,7 @@ describe("parsePersistedState", () => {
       defaultAdvertisedEndpointKey: "desktop-core:lan:http",
       sidebarProjectScopeKeys: [],
       pullRequestMergeMethod: "merge",
+      sidebarKindFilter: "all",
       threadChangedFilesExpandedById: {
         "environment:thread-1": {
           "turn-1": false,
@@ -246,10 +248,21 @@ describe("uiStateStore persistence", () => {
         },
       },
       pullRequestMergeMethod: "merge",
+      sidebarKindFilter: "all",
     });
     expect(parsePersistedState(persisted)).toEqual({
       ...state,
     });
+  });
+
+  it("restores the sidebar kind filter and drops unknown ones", () => {
+    persistState(makeUiState({ sidebarKindFilter: "reviews" }));
+    const persisted = JSON.parse(
+      localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
+    ) as PersistedUiState;
+
+    expect(parsePersistedState(persisted).sidebarKindFilter).toBe("reviews");
+    expect(parsePersistedState({ sidebarKindFilter: "issues" }).sidebarKindFilter).toBe("all");
   });
 
   it("restores the sidebar project scope across reloads", () => {

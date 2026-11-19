@@ -114,6 +114,7 @@ import { openOnHostLabel } from "./pullRequestLinkContextMenu";
 import { PullRequestMarkdownContext } from "./PullRequestMarkdown";
 import { pullRequestMarkdownPlugins } from "./pullRequestMarkdown.logic";
 import { PullRequestComposer } from "./PullRequestComposer";
+import { PullRequestQuickReview } from "./PullRequestQuickReview";
 import { PullRequestSummaryTab } from "./PullRequestSummaryTab";
 import { PullRequestTimelineTab } from "./PullRequestTimelineTab";
 import {
@@ -433,6 +434,7 @@ export function PullRequestDetailPanel({
   useEnvironmentQuery(pullRequestEnvironment.changeBreakdown({ environmentId, input: reference }));
   const [threadPickerOpen, setThreadPickerOpen] = useState(false);
   const [openReviewRequest, setOpenReviewRequest] = useState(0);
+  const [requestChangesToken, setRequestChangesToken] = useState(0);
   const {
     canWriteSourceControl,
     detailQuery,
@@ -1610,6 +1612,16 @@ export function PullRequestDetailPanel({
                   }}
                 />
               ) : null}
+              <PullRequestQuickReview
+                environmentId={environmentId}
+                reference={reference}
+                detail={detail}
+                onComposeRequestChanges={() => setRequestChangesToken((token) => token + 1)}
+                onSubmitted={() => {
+                  refreshDetail();
+                  onActed?.();
+                }}
+              />
               <PullRequestPrimaryAction
                 mergeBlockedReason={mergeBlockedReason}
                 pullRequestKey={pullRequestKey}
@@ -2217,6 +2229,11 @@ export function PullRequestDetailPanel({
             onCommented={refreshDetail}
             onReviewSubmitted={refreshDetail}
             openReviewRequest={openReviewRequest}
+            reviewVerdictRequest={
+              requestChangesToken === 0
+                ? undefined
+                : { token: requestChangesToken, verdict: "request-changes" }
+            }
           />
         </div>
       ) : null}
