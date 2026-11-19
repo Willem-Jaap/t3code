@@ -3213,6 +3213,47 @@ it.effect("carries a slice on without sending the rows it already sent", () =>
     });
   }),
 );
+it.effect("lists review requests in repositories without a project through one search", () =>
+  Effect.gen(function* () {
+    const asked: Array<ReadonlyArray<string>> = [];
+    const service = yield* makeService({
+      projects: [
+        project({ id: "p1", title: "web", workspaceRoot: "/a", repository: "acme/web" }),
+        project({ id: "p2", title: "docs", workspaceRoot: "/b", repository: "acme/docs" }),
+      ],
+      providers: [
+        fakePullRequestProvider(SourceControlProviderKind.make("github"), {
+          listChangeRequestsAcross: (input) => {
+            asked.push(input.repositories);
+            return Effect.succeed({
+              items: [
+                batchedChangeRequest(7, "acme/clone", "2026-07-03T00:00:00Z"),
+                batchedChangeRequest(2, "acme/docs", "2026-07-02T00:00:00Z"),
+              ],
+              truncated: false,
+            });
+          },
+        }),
+      ],
+    });
+
+    const result = yield* service.list({
+      state: "open",
+      involvement: "reviewing",
+      scope: "account",
+    });
+
+    assert.deepStrictEqual(asked, [[]]);
+    assert.deepStrictEqual(
+      result.entries.map((entry) => [entry.repository, entry.number, entry.projectId]),
+      [
+        ["acme/clone", 7, "p1"],
+        ["acme/docs", 2, "p2"],
+      ],
+    );
+    assert.deepStrictEqual(result.nextCursors, {});
+  }),
+);
 it.effect("reads a workspace larger than one search in chunks, and merges them", () =>
   Effect.gen(function* () {
     const asked: Array<number> = [];

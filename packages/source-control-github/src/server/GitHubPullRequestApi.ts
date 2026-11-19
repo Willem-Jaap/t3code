@@ -979,7 +979,10 @@ function matchesUnsortedListing(
 
 const SEARCH_REPOSITORY = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
-/** Unquoted repo: values must not inject qualifiers. */
+/**
+ * Unquoted repo: values must not inject qualifiers. No repositories searches everywhere the viewer
+ * can see, which only a listing narrowed to the viewer may ask for.
+ */
 function searchQuery(input: {
   readonly repositories: ReadonlyArray<string>;
   readonly state: PullRequestListState;
@@ -989,7 +992,7 @@ function searchQuery(input: {
   readonly cursor?: Pick<ProviderListCursor, "updatedBefore"> | undefined;
   readonly filters?: PullRequestListFilters | undefined;
 }): string | null {
-  if (input.repositories.length === 0) return null;
+  if (input.repositories.length === 0 && input.involvement === "all") return null;
   const repositories = input.repositories.map((repository) => repository.trim());
   if (!repositories.every((repository) => SEARCH_REPOSITORY.test(repository))) return null;
   const query = input.query?.trim() ?? "";

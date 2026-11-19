@@ -1683,6 +1683,42 @@ layer("GitHubPullRequestApi.layer", (it) => {
     }),
   );
 
+  it.effect("searches every repository for the viewer's review requests", () =>
+    Effect.gen(function* () {
+      mockedExecute.mockReturnValue(Effect.succeed(searchPage([])));
+      const cli = yield* GitHubPullRequestApi.GitHubPullRequestApi;
+
+      yield* cli.searchPullRequests({
+        cwd: "/w",
+        host: "github.com",
+        repositories: [],
+        state: "open",
+        involvement: "reviewing",
+        viewer: "bilal",
+        limit: 50,
+      });
+      assert.strictEqual(
+        searchQueryOfCall(0),
+        "is:pr is:open review-requested:bilal sort:updated-desc",
+      );
+
+      // A search not narrowed to the viewer would read every pull request on the host.
+      const unnarrowed = yield* cli
+        .searchPullRequests({
+          cwd: "/w",
+          host: "github.com",
+          repositories: [],
+          state: "open",
+          involvement: "all",
+          viewer: "bilal",
+          limit: 50,
+        })
+        .pipe(Effect.flip);
+      assert.strictEqual(unnarrowed._tag, "GitHubRepositorySelectorError");
+      assert.strictEqual(mockedExecute.mock.calls.length, 1);
+    }),
+  );
+
   it.effect("keeps a searched-for qualifier inside the phrase", () =>
     Effect.gen(function* () {
       mockedExecute.mockReturnValue(Effect.succeed(searchPage([])));

@@ -13,6 +13,8 @@ const FOCUS_REFRESH_MIN_MS = 60_000;
 const LIST_INPUT = {
   state: "open",
   involvement: "reviewing",
+  // Requests arrive from repositories that have no project here too.
+  scope: "account",
   limit: 50,
 } as const satisfies PullRequestListInput;
 

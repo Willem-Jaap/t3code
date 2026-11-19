@@ -406,6 +406,11 @@ export const PullRequestListInput = Schema.Struct({
   limit: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 500 }))),
   cursors: Schema.optional(PullRequestListCursors),
   query: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(200))),
+  /**
+   * `account` lists authored or review-requested pull requests in every repository the signed-in
+   * account can see, not only those with a project. It reads one page and takes no cursors.
+   */
+  scope: Schema.optional(Schema.Literals(["projects", "account"])),
 });
 export type PullRequestListInput = typeof PullRequestListInput.Type;
 

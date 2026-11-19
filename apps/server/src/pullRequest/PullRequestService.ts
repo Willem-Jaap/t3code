@@ -40,6 +40,7 @@ import {
   type PullRequestReportStateInput,
   type PullRequestListEntry,
   type PullRequestListFilters,
+  type PullRequestInvolvement,
   type PullRequestListInput,
   type PullRequestListProjectError,
   type PullRequestListResult,
@@ -1374,6 +1375,83 @@ export const make = Effect.gen(function* () {
     };
   };
 
+  // Review requests reach you from repositories you never opened here. One search per host reads
+  // them all, routed through any checkout on that host the way a pull request URL is.
+  const listAcrossAccount = (options: {
+    readonly input: PullRequestListInput;
+    readonly involvement: Exclude<PullRequestInvolvement, "all">;
+    readonly limit: number;
+    readonly readable: ReadonlyArray<SupportedProject>;
+    readonly viewers: Readonly<Record<string, string>>;
+  }) => {
+    const { input, involvement, limit, readable, viewers } = options;
+    const routers = new Map<string, SupportedProject>();
+    for (const project of readable) {
+      if (project.api.listChangeRequestsAcross !== undefined && !routers.has(project.host)) {
+        routers.set(project.host, project);
+      }
+    }
+    return Effect.forEach(
+      [...routers.values()],
+      (router) => {
+        const viewer = viewers[router.host]!;
+        return router.api.listChangeRequestsAcross!({
+          cwd: router.project.workspaceRoot,
+          host: router.host,
+          repositories: [],
+          state: input.state,
+          involvement,
+          viewer,
+          limit,
+          query: input.query,
+          filters: input.filters,
+        }).pipe(
+          observeRead,
+          Effect.map(({ value: page, observedAt }) => ({
+            entries: page.items
+              .filter((item) => matchesRowFilters(item, input.filters, viewer))
+              .map((item) => {
+                const repository = item.repository.trim();
+                const own = readable.find(
+                  (project) =>
+                    project.host === router.host &&
+                    project.repository.toLowerCase() === repository.toLowerCase(),
+                );
+                return toEntry({
+                  project: own ?? { ...router, repository },
+                  item,
+                  viewer,
+                  observedAt,
+                });
+              }),
+            errors: [] as Array<PullRequestListProjectError>,
+            truncated: page.truncated,
+          })),
+          Effect.orElseSucceed(() => ({
+            entries: [],
+            errors: [
+              {
+                projectId: router.project.id,
+                projectTitle: router.project.title,
+                message: `Pull requests on ${router.host} could not be read.`,
+              },
+            ],
+            truncated: false,
+          })),
+        );
+      },
+      { concurrency: REPOSITORY_CONCURRENCY },
+    ).pipe(
+      Effect.map((batches) => ({
+        entries: batches
+          .flatMap((batch) => batch.entries)
+          .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+        errors: batches.flatMap((batch) => batch.errors),
+        truncated: batches.some((batch) => batch.truncated),
+      })),
+    );
+  };
+
   const listUncached: PullRequestService["Service"]["list"] = Effect.fn(
     "PullRequestService.listUncached",
   )(function* (input) {
@@ -1462,6 +1540,18 @@ export const make = Effect.gen(function* () {
     }
 
     const limit = input.limit ?? DEFAULT_REPOSITORY_LIST_LIMIT;
+    if (input.scope === "account" && involvement !== "all") {
+      return yield* listAcrossAccount({ input, involvement, limit, readable, viewers }).pipe(
+        Effect.map(({ entries, errors, truncated }) => ({
+          viewers: viewers as PullRequestListResult["viewers"],
+          providers,
+          entries,
+          errors: [...unreadable, ...errors],
+          truncated,
+          nextCursors: {},
+        })),
+      );
+    }
     const cursorOf = (project: SupportedProject): ListCursor | undefined =>
       continuation?.get(project.cursorKey);
 
@@ -3238,6 +3328,7 @@ export const make = Effect.gen(function* () {
         limit,
         query,
         cursorEntries,
+        scope,
       ] = JSON.parse(key) as [
         number,
         string,
@@ -3249,6 +3340,7 @@ export const make = Effect.gen(function* () {
         number | null,
         string | null,
         ReadonlyArray<[string, string]> | null,
+        string | null,
       ];
       return listUncached({
         state,
@@ -3260,6 +3352,7 @@ export const make = Effect.gen(function* () {
         ...(limit === null ? {} : { limit }),
         ...(query === null ? {} : { query }),
         ...(cursorEntries === null ? {} : { cursors: Object.fromEntries(cursorEntries) }),
+        ...(scope === null ? {} : { scope }),
       } as PullRequestListInput);
     },
     {
@@ -3290,6 +3383,7 @@ export const make = Effect.gen(function* () {
       input.cursors === undefined
         ? null
         : Object.entries(input.cursors).toSorted(([left], [right]) => left.localeCompare(right)),
+      input.scope ?? null,
     ]);
     // A replacement reader can join a lookup still finishing its previous reader's cancellation.
     return Cache.get(listCache, key).pipe(

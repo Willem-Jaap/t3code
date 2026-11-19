@@ -410,7 +410,10 @@ export interface PullRequestProviderApi {
     },
   ) => Effect.Effect<ProviderChangeRequestPage, PullRequestProviderError>;
 
-  /** Newest `limit` rows total across repositories, under one cursor boundary. */
+  /**
+   * Newest `limit` rows total across repositories, under one cursor boundary. No repositories
+   * with authored or reviewing involvement reads every repository the viewer can see.
+   */
   readonly listChangeRequestsAcross?: (input: {
     readonly cwd: string;
     readonly host: string;
