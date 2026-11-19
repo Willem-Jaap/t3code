@@ -319,10 +319,14 @@ function follow({ build }) {
   }
   run("git", ["fetch", "--quiet", tracking.remote], { log: "fetch" });
   const before = git("rev-parse", "HEAD");
-  const forward = run("git", ["merge", "--ff-only", `refs/remotes/${tracking.ref}`], {
-    log: "follow",
-    allowFailure: true,
-  });
+  const ownCommits = Number(git("rev-list", "--count", `refs/remotes/${tracking.ref}..HEAD`));
+  const forward =
+    ownCommits === 0
+      ? run("git", ["merge", "--ff-only", `refs/remotes/${tracking.ref}`], {
+          log: "follow",
+          allowFailure: true,
+        })
+      : { ok: false };
   if (!forward.ok) {
     throw new Stop(EXIT.failed, {
       outcome: "failed",
