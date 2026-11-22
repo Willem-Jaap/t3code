@@ -3693,7 +3693,6 @@
   "7c1923203049d602": "Copiar código",
   "637817e4ff79c90e": "Acciones del bloque de código",
   "ebf3a2b1e314aa5f": "Ejecutar en la terminal",
-  "fe219642547fa0bf": "Ejecutar en la terminal",
   "122a8512abc51180": "Detalles",
   "58c38c65c2783c5d": "Ruta completa",
   "f37e7d36b51c5b28": "Copiar ruta relativa",
@@ -3705,10 +3704,6 @@
   "4967584e8d0fb1c2": "Vista previa del contenido",
   "67589dd912eacb7c": "Abrir en el navegador integrado",
   "a3c98d4c4b24cecb": "Opciones de archivo de {label}",
-  "b4fe8a076e9fd2f8": "Ecuación en bloque",
-  "085d1407e8c92cce": "Ecuación en línea",
-  "a2ef393fa7b48ae8": "Desplazar la ecuación en bloque",
-  "e94685ea5642e088": "Desplazar la ecuación en línea",
   "3a04583c8500e23d": "Mostrar diagrama",
   "16d64f650840fe06": "Mostrar código",
   "6d329f7d3a50c7e7": "Copiar tabla",
@@ -8693,7 +8688,7 @@
   "58e0e226493150e7": "No se pudieron cargar los gestores de issues",
   "77cfcbde543df32d": "Mostrar u ocultar detalles de {tracker}",
   "0083f65885c60156": "Desconectar {tracker}",
-  "295392927d5c8a84": "Elige uno o más {scope}s de {tracker} para cada proyecto. Sus issues aparecen junto a las del repositorio, y los agentes crean issues nuevas en el primero.",
+  "ed83b25c71c98a20": "Elige uno o más {scope}s de {tracker} para cada proyecto. Sus issues aparecen junto a las del repositorio, y los agentes crean issues nuevas en el primero, salvo que se les pida otro.",
   "19c2d5e81ff8f89a": "{scope} de {tracker} para {project}",
   "68e061510b765772": "Sin vincular",
   "a2d95d39d3398bda": "Credencial rechazada",
@@ -12453,5 +12448,7 @@
   "27d76249d09eb69f": "Guía de revisión lista",
   "faa3bb26abb39c93": "Falló la guía de revisión",
   "b7df38b7d8792d78": "Abrir guía",
-  "9e91e9a77b664e4e": "No se pudo iniciar una guía de revisión"
+  "9e91e9a77b664e4e": "No se pudo iniciar una guía de revisión",
+  "d8aaf932f90429c4": "Mover este comando al principio de la cola ({shortcut})",
+  "425ab15036aec8a4": "Mover este comando al principio de la cola"
 }
