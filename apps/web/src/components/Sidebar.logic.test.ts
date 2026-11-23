@@ -1191,12 +1191,17 @@ describe("Working shelf (beta)", () => {
       row("a2", "active"),
       marker("working-header"),
       row("w1", "working"),
+      marker("backlog-header"),
+      row("b1", "backlog"),
       marker("settled-header"),
       row("s1", "settled"),
     ];
 
     it("never drops into the Working shelf, and keeps it out of the inbox order", () => {
       expect(resolveSidebarDropTarget(items, "a1", "w1")).toBeNull();
+      expect(resolveSidebarDropTarget(items, "a1", "b1")).toBeNull();
+      expect(resolveSidebarDropVerb("active", "backlog")).toBeNull();
+      expect(resolveSidebarDropVerb("backlog", "active")).toBe("wake");
       expect(resolveSidebarDropTarget(items, "p1", "a2")).toEqual({
         section: "active",
         pinnedOrder: [],

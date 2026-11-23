@@ -41,6 +41,7 @@ describe("buildThreadActionMenuItems", () => {
             "unpin",
             "unsettle",
             "unsnooze",
+            "backlog",
             "rename",
             "regenerate-title",
             "auto-settle",
@@ -51,6 +52,7 @@ describe("buildThreadActionMenuItems", () => {
             "pin",
             "settle",
             "snooze",
+            "backlog",
             "rename",
             "regenerate-title",
             "auto-settle",
@@ -64,6 +66,22 @@ describe("buildThreadActionMenuItems", () => {
       ).toBe(true);
     },
   );
+
+  it("offers Backlog right below Snooze, and only a way out once backlogged", () => {
+    const ids = (state: ThreadActionMenuState) =>
+      buildThreadActionMenuItems(state).map((item) => item.id);
+    expect(ids(baseState).slice(2, 4)).toEqual(["snooze", "backlog"]);
+    expect(ids({ ...baseState, isSnoozed: true }).slice(2, 4)).toEqual(["unsnooze", "backlog"]);
+    const backlogged = ids({ ...baseState, isSnoozed: true, isBacklogged: true });
+    expect(backlogged[2]).toBe("unbacklog");
+    expect(backlogged).not.toContain("backlog");
+    expect(backlogged).not.toContain("unsnooze");
+    expect(
+      buildThreadActionMenuItems({ ...baseState, canSnoozeNow: false }).find(
+        (item) => item.id === "backlog",
+      )?.disabled,
+    ).toBe(true);
+  });
 
   it("disables archive and turning into a project while the thread is running", () => {
     const items = buildThreadActionMenuItems({

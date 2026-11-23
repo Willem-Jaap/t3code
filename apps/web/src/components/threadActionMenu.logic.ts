@@ -20,6 +20,8 @@ export type ThreadActionMenuId =
   | "snooze"
   | `snooze:${string}`
   | "unsnooze"
+  | "backlog"
+  | "unbacklog"
   | "rename"
   | "regenerate-title"
   | "mark-unread"
@@ -107,6 +109,8 @@ export interface ThreadActionMenuState {
   readonly isSettled: boolean;
   readonly autoSettleEnabled: boolean;
   readonly isSnoozed: boolean;
+  /** Snoozed with no wake time; implies `isSnoozed`. */
+  readonly isBacklogged?: boolean;
   readonly canSnoozeNow: boolean;
   readonly isRegeneratingTitle: boolean;
   /** Archive rejects attached providers, so disable it while running. */
@@ -178,26 +182,44 @@ export function buildThreadActionMenuItems(
       : []),
     ...(state.supports.snooze
       ? [
-          state.isSnoozed
-            ? { id: "unsnooze" as const, label: resolve(msg("Wake thread")), icon: "clock" }
-            : {
-                id: "snooze" as const,
-                label: resolve(msg("Snooze", { $context: "verb, snooze the thread" })),
-                icon: "clock",
-                disabled: !state.canSnoozeNow,
-                children: [
-                  ...state.snoozePresets.map((preset) => ({
-                    id: `snooze:${preset.id}` as const,
-                    label: preset.label,
-                    detail: preset.whenLabel,
-                  })),
-                  {
-                    id: "snooze:custom" as const,
-                    label: resolve(msg("Custom…")),
-                    separatorBefore: state.snoozePresets.length > 0,
-                  },
-                ],
-              },
+          state.isBacklogged
+            ? {
+                id: "unbacklog" as const,
+                label: resolve(msg("Remove from backlog")),
+                icon: "inbox",
+              }
+            : state.isSnoozed
+              ? { id: "unsnooze" as const, label: resolve(msg("Wake thread")), icon: "clock" }
+              : {
+                  id: "snooze" as const,
+                  label: resolve(msg("Snooze", { $context: "verb, snooze the thread" })),
+                  icon: "clock",
+                  disabled: !state.canSnoozeNow,
+                  children: [
+                    ...state.snoozePresets.map((preset) => ({
+                      id: `snooze:${preset.id}` as const,
+                      label: preset.label,
+                      detail: preset.whenLabel,
+                    })),
+                    {
+                      id: "snooze:custom" as const,
+                      label: resolve(msg("Custom…")),
+                      separatorBefore: state.snoozePresets.length > 0,
+                    },
+                  ],
+                },
+          ...(state.isBacklogged
+            ? []
+            : [
+                {
+                  id: "backlog" as const,
+                  label: resolve(
+                    msg("Backlog", { $context: "verb, park the thread in the backlog" }),
+                  ),
+                  icon: "inbox",
+                  disabled: !state.canSnoozeNow,
+                },
+              ]),
         ]
       : []),
     {

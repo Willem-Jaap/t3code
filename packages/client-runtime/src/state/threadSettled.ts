@@ -155,6 +155,30 @@ export function canSnooze(
   return true;
 }
 
+/**
+ * The backlog is a snooze whose wake never comes: the thread stays parked until moved out by
+ * hand, and still wakes early like any snooze when it raises its hand. Servers need no support
+ * beyond snoozing, so the backlog syncs across devices as an ordinary snooze.
+ */
+export const BACKLOG_SNOOZED_UNTIL = "9999-12-31T23:59:59.000Z";
+
+const BACKLOG_SNOOZED_UNTIL_MS = Date.parse(BACKLOG_SNOOZED_UNTIL);
+
+/** Whether a snooze wake time marks the backlog rather than a wake. */
+export function isBacklogSnooze(snoozedUntil: string | null | undefined): boolean {
+  if (snoozedUntil == null) return false;
+  const wakeAtMs = Date.parse(snoozedUntil);
+  return !Number.isNaN(wakeAtMs) && wakeAtMs >= BACKLOG_SNOOZED_UNTIL_MS;
+}
+
+/** A snoozed thread that waits in the backlog; callers check `effectiveSnoozed` first. */
+export function effectiveBacklogged(
+  shell: ThreadSnoozeShell,
+  options: { readonly now: string },
+): boolean {
+  return isBacklogSnooze(shell.snoozedUntil) && effectiveSnoozed(shell, options);
+}
+
 export function effectiveSnoozed(
   shell: ThreadSnoozeShell,
   options: { readonly now: string },
@@ -402,6 +426,11 @@ export function snoozeWakeLabel(
   options: { readonly now: string },
   resolve: MFunctionType = mFallback,
 ): string {
+  if (isBacklogSnooze(snoozedUntil)) {
+    return resolve(
+      msg("Backlog", { $context: "a thread parked in the backlog, with no wake time" }),
+    );
+  }
   const wakeMs = Date.parse(snoozedUntil);
   const nowMs = Date.parse(options.now);
   const now = () => resolve(msg("now", { $context: "a snoozed thread wakes now" }));
