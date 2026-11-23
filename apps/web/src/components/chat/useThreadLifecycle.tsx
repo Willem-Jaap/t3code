@@ -28,6 +28,7 @@ import {
 } from "@t3tools/contracts";
 import {
   effectiveSnoozed,
+  isBacklogSnooze,
   snoozeWakeLabel,
   threadWokeAt,
 } from "@t3tools/client-runtime/state/thread-settled";
@@ -50,7 +51,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import { useUiStateStore } from "../../uiStateStore";
 import { type ChatMessage, DEFAULT_INTERACTION_MODE } from "../../types";
-import { AlarmClockIcon, CheckCircle2Icon } from "lucide-react";
+import { AlarmClockIcon, CheckCircle2Icon, InboxIcon } from "lucide-react";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { titleRegenerationToast } from "../threadTitleRegenerationToast";
 import { newMessageId } from "~/lib/utils";
@@ -654,21 +655,32 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const settledAt = activeThreadShell?.settledAt ?? null;
   // Same rounding as the sidebar's snoozed shelf, so both read the same hour.
   const snoozeNow = `${nowMinute}:00.000Z`;
+  const backlogged = isBacklogSnooze(snoozedUntil);
   const snoozeWake =
-    snoozedUntil && Date.parse(snoozedUntil) > Date.parse(snoozeNow)
+    snoozedUntil && !backlogged && Date.parse(snoozedUntil) > Date.parse(snoozeNow)
       ? snoozeWakeLabel(snoozedUntil, { now: snoozeNow }, messages)
       : null;
   const threadStatusLine = activeThreadSnoozed ? (
     limitRecoveryHoldsSnooze ? null : (
       <ThreadStatusLine
-        icon={<AlarmClockIcon />}
+        icon={backlogged ? <InboxIcon /> : <AlarmClockIcon />}
         label={
-          snoozeWake
-            ? gt("Snoozed, {remaining} left", { remaining: snoozeWake })
-            : gt("Snoozed", { $context: "thread status" })
+          backlogged
+            ? gt("In backlog", { $context: "thread status" })
+            : snoozeWake
+              ? gt("Snoozed, {remaining} left", { remaining: snoozeWake })
+              : gt("Snoozed", { $context: "thread status" })
         }
         clockMinute={nowMinute}
-        actionLabel={isUnsnoozing ? gt("Waking...") : gt("Wake now")}
+        actionLabel={
+          backlogged
+            ? isUnsnoozing
+              ? gt("Removing...")
+              : gt("Remove from backlog")
+            : isUnsnoozing
+              ? gt("Waking...")
+              : gt("Wake now")
+        }
         actionDisabled={!canOperateThread || isUnsnoozing}
         onAction={() => void handleUnsnoozeActiveThreadStable()}
       />

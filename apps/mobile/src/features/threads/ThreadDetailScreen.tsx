@@ -19,6 +19,7 @@ import { UsageLimitRecoveryCard } from "./UsageLimitRecoveryCard";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
   effectiveSnoozed,
+  isBacklogSnooze,
   threadWokeAt,
   isThreadWokeUnseen,
   snoozeWakeLabel,
@@ -779,8 +780,10 @@ function ThreadDetailBody(
       : settled
         ? gt("Un-settle", { $context: "verb, thread action" })
         : gt("Dismiss");
+    const backlogged = lifecycleSnoozed && isBacklogSnooze(snoozedUntil);
     const wake =
       lifecycleSnoozed &&
+      !backlogged &&
       snoozedUntil !== null &&
       Date.parse(snoozedUntil) > Date.parse(lifecycleNow)
         ? snoozeWakeLabel(snoozedUntil, { now: lifecycleNow }, messages)
@@ -788,13 +791,15 @@ function ThreadDetailBody(
     return {
       key: "lifecycle",
       icon: settled && !lifecycleSnoozed ? "checkmark.circle" : "alarm",
-      label: lifecycleSnoozed
-        ? wake === null
-          ? gt("Snoozed", { $context: "thread state" })
-          : gt("Snoozed, {time} left", { time: wake })
-        : settled
-          ? gt("Settled", { $context: "thread state" })
-          : gt("Woke from snooze"),
+      label: backlogged
+        ? gt("In backlog", { $context: "thread state" })
+        : lifecycleSnoozed
+          ? wake === null
+            ? gt("Snoozed", { $context: "thread state" })
+            : gt("Snoozed, {time} left", { time: wake })
+          : settled
+            ? gt("Settled", { $context: "thread state" })
+            : gt("Woke from snooze"),
       action: {
         label: statusPending
           ? lifecycleSnoozed

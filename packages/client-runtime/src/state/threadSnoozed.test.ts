@@ -7,7 +7,9 @@ import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  BACKLOG_SNOOZED_UNTIL,
   canSnooze,
+  effectiveBacklogged,
   effectiveSnoozed,
   hasQueuedTurnStart,
   hasUnseenRunFailure,
@@ -80,6 +82,20 @@ function makeQueuedTurnShell(overrides: Partial<QueuedTurnShell> = {}): QueuedTu
 describe("effectiveSnoozed", () => {
   it("never hides on malformed wake data", () => {
     expect(effectiveSnoozed(makeShell({ snoozedUntil: "not-a-date" }), { now: NOW })).toBe(false);
+    expect(effectiveBacklogged(makeShell({ snoozedUntil: "not-a-date" }), { now: NOW })).toBe(
+      false,
+    );
+  });
+
+  it("keeps a backlogged thread parked with no wake, until it raises its hand", () => {
+    const backlogged = makeShell({ snoozedUntil: BACKLOG_SNOOZED_UNTIL, snoozedAt: SNOOZED_AT });
+    expect(effectiveBacklogged(backlogged, { now: NOW })).toBe(true);
+    expect(effectiveBacklogged(backlogged, { now: "2999-01-01T00:00:00.000Z" })).toBe(true);
+    expect(threadWokeAt(backlogged, { now: NOW })).toBeNull();
+    expect(effectiveBacklogged(makeShell({ snoozedUntil: FUTURE_WAKE }), { now: NOW })).toBe(false);
+    expect(effectiveBacklogged({ ...backlogged, hasPendingApprovals: true }, { now: NOW })).toBe(
+      false,
+    );
   });
 
   it("defers an existing question until the timer, but wakes for a new question", () => {
@@ -525,6 +541,7 @@ describe("snoozeWakeLabel", () => {
     expect(snoozeWakeLabel(wake, { now: "2026-04-10T12:01:00.000Z" })).toBe("59m");
     expect(snoozeWakeLabel(wake, { now: "2026-04-10T13:00:10.000Z" })).toBe("1m");
     expect(snoozeWakeLabel(wake, { now: "2026-04-10T13:00:30.000Z" })).toBe("now");
+    expect(snoozeWakeLabel(BACKLOG_SNOOZED_UNTIL, { now: NOW })).toBe("Backlog");
   });
 });
 

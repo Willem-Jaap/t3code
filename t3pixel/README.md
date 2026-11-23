@@ -5,6 +5,8 @@ Pixel Perfect's build of [T3 Code](https://github.com/pingdotgg/t3code). It adds
 - Pull requests waiting on your review in the thread sidebar (All · Threads · Reviews), with Done
   and Hidden shelves in the Reviews tab.
 - Approve and Request changes buttons on pull requests, showing your verdict once given.
+- A Backlog for threads you need to get back to but don't want to snooze to a time: right-click,
+  Backlog. They wait in a shelf below Snoozed until you remove them, or until they need you.
 - Desktop builds named T3 Pixel.
 
 It lives on the `t3pixel` branch of this fork. Changes land through pull requests into `t3pixel`.
