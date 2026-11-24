@@ -70,18 +70,23 @@ const VERDICTS: ReadonlyArray<ReviewVerdictOption> = [
 export function usePullRequestReviewSubmit({
   environmentId,
   reference,
+  headSha,
   term,
   snapshot,
   onPendingChange,
   onSubmitted,
+  onRefused,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
+  /** The head on screen, which the review is pinned to. */
+  headSha: string | undefined;
   term: ChangeRequestTermKind;
   /** Lets the sidebar move the pull request to Done once the review lands. */
   snapshot: SidebarPullRequestSnapshot | null;
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
+  onRefused: () => void;
 }) {
   const reviewKey = pullRequestReviewKey(reference);
   const removeComments = usePullRequestReviewStore((store) => store.removeComments);
@@ -96,7 +101,13 @@ export function usePullRequestReviewSubmit({
     onPendingChange(true);
     const result = await submitReview({
       environmentId,
-      input: { ...reference, verdict: verdict.value, body: text, comments: submittedComments },
+      input: {
+        ...reference,
+        ...(headSha === undefined ? {} : { expectedHeadSha: headSha }),
+        verdict: verdict.value,
+        body: text,
+        comments: submittedComments,
+      },
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
@@ -108,6 +119,7 @@ export function usePullRequestReviewSubmit({
           m(msg("The host refused the review. Your draft is still here to try again.")),
         ),
       });
+      onRefused();
       return;
     }
     // Preserve comments and summary edits made during submission.
@@ -126,6 +138,7 @@ export function PullRequestReviewForm({
   environmentId,
   active,
   reference,
+  headSha,
   completionScope,
   term,
   verdicts,
@@ -134,6 +147,7 @@ export function PullRequestReviewForm({
   pending,
   onPendingChange,
   onSubmitted,
+  onRefused,
   verdictRequest,
   snapshot,
 }: {
@@ -141,6 +155,8 @@ export function PullRequestReviewForm({
   /** False while the form stays mounted but hidden; dictation is cancelled then. */
   active: boolean;
   reference: PullRequestRef;
+  /** The head on screen, which the review is pinned to. */
+  headSha: string | undefined;
   completionScope: PullRequestCompletionScope | null;
   term: ChangeRequestTermKind;
   verdicts: ReadonlyArray<PullRequestReviewVerdict>;
@@ -149,6 +165,7 @@ export function PullRequestReviewForm({
   pending: boolean;
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
+  onRefused: () => void;
   /** Selects a verdict each time `token` changes, such as from a header button. */
   verdictRequest?:
     | { readonly token: number; readonly verdict: PullRequestReviewVerdict }
@@ -186,10 +203,12 @@ export function PullRequestReviewForm({
   const sendReview = usePullRequestReviewSubmit({
     environmentId,
     reference,
+    headSha,
     term,
     snapshot,
     onPendingChange,
     onSubmitted,
+    onRefused,
   });
 
   const offered = VERDICTS.filter((verdict) => verdicts.includes(verdict.value));

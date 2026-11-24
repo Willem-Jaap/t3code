@@ -30,15 +30,20 @@ import { reviewSnapshotFromDetail } from "../sidebar/sidebarReviewRequests.logic
 export function PullRequestQuickReview({
   environmentId,
   reference,
+  headSha,
   detail,
   onComposeRequestChanges,
   onSubmitted,
+  onRefused,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
+  /** The head on screen, which the review is pinned to. */
+  headSha: string | undefined;
   detail: PullRequestDetailView;
   onComposeRequestChanges: () => void;
   onSubmitted: () => void;
+  onRefused: () => void;
 }) {
   const gt = useGT();
   const client = sourceControlClients.get(detail.provider);
@@ -53,10 +58,12 @@ export function PullRequestQuickReview({
   const send = usePullRequestReviewSubmit({
     environmentId,
     reference,
+    headSha,
     term,
     snapshot: reviewSnapshotFromDetail(environmentId, reference, detail),
     onPendingChange: () => {},
     onSubmitted,
+    onRefused,
   });
 
   const verdicts = detail.capabilities.review.verdicts.filter((verdict) =>
